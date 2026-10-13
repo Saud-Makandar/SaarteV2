@@ -1,13 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Heart, Eye, ShoppingBag, ArrowLeft, ChevronDown, Search, SlidersHorizontal } from 'lucide-react'
 import axios from 'axios'
+import { useShop } from '../context/ShopContext'
+import { MEN_PRODUCTS } from '../data/productsData'
 
 // ── MenCard ─────────────────────────────────────────────────────────────────
 const MenCard = ({ product }) => {
   const cardRef = useRef(null)
   const [visible, setVisible] = useState(false)
-  const [wishlisted, setWishlisted] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const { addToCart, toggleWishlist, isInWishlist } = useShop()
+
+  const prodId = product.id || product._id || product.name
+  const isWishlisted = isInWishlist(prodId)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -67,14 +72,18 @@ const MenCard = ({ product }) => {
         {/* Wishlist */}
         <button
           className="absolute top-3 right-3 z-10 w-9 h-9 bg-white rounded-full flex items-center justify-center cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.12)] transition-all duration-200 hover:scale-110 hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
-          onClick={() => setWishlisted(w => !w)}
+          onClick={() => toggleWishlist(product)}
+          title={isWishlisted ? "Remove from favourites" : "Save to favourites"}
         >
-          <Heart size={18} fill={wishlisted ? '#c0392b' : 'none'} color={wishlisted ? '#c0392b' : '#111'} />
+          <Heart size={18} fill={isWishlisted ? '#c0392b' : 'none'} color={isWishlisted ? '#c0392b' : '#111'} />
         </button>
 
         {/* Hover Actions */}
         <div className={`absolute bottom-3 left-3 right-3 z-10 flex gap-2 transition-all duration-300 ease-out ${hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-          <button className="flex-1 flex items-center justify-center gap-1.5 bg-black hover:bg-[#1a1a1a] text-white text-[10px] tracking-[0.2em] uppercase py-3 transition-colors duration-200 cursor-pointer">
+          <button
+            onClick={() => addToCart(product)}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-black hover:bg-[#b8860b] text-white text-[10px] tracking-[0.2em] uppercase py-3 transition-colors duration-200 cursor-pointer font-medium"
+          >
             <ShoppingBag size={13} />
             <span>Add to Bag</span>
           </button>
@@ -117,6 +126,7 @@ const MenStore = ({ onBack }) => {
   const [filterOpen, setFilterOpen] = useState(false)
   const [selectedBadges, setSelectedBadges] = useState([])
   const [spinnerAngle, setSpinnerAngle] = useState(0)
+  const { openWishlist, wishlistCount, openCart, cartCount } = useShop()
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -133,9 +143,13 @@ const MenStore = ({ onBack }) => {
     try {
       setLoading(true)
       const res = await axios.get('http://localhost:5000/api/men')
-      setProducts(res.data.data)
+      if (res.data?.data && res.data.data.length > 0) {
+        setProducts(res.data.data)
+      } else {
+        setProducts(MEN_PRODUCTS)
+      }
     } catch (err) {
-      setError('Could not load products. Please make sure the backend is running.')
+      setProducts(MEN_PRODUCTS)
     } finally {
       setLoading(false)
     }
@@ -266,6 +280,31 @@ const MenStore = ({ onBack }) => {
               <option value="name">Name A–Z</option>
             </select>
             <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#999]" />
+          </div>
+
+          {/* Quick Wishlist & Bag Access */}
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={openWishlist}
+              className="relative p-2.5 bg-white border border-black/[0.09] hover:bg-black hover:text-white transition-colors cursor-pointer"
+              title="Saved Favourites"
+            >
+              <Heart size={14} className={wishlistCount > 0 ? "fill-[#c0392b] text-[#c0392b]" : ""} />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-[#c0392b] text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {wishlistCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={openCart}
+              className="relative px-3 py-2 bg-black text-white hover:bg-[#b8860b] transition-colors cursor-pointer flex items-center gap-1.5 text-[10px] tracking-widest uppercase font-medium"
+              title="Shopping Bag"
+            >
+              <ShoppingBag size={13} />
+              <span>Bag ({cartCount})</span>
+            </button>
           </div>
 
           <span className="text-[10px] text-[#bbb] tracking-[0.2em] uppercase whitespace-nowrap">
